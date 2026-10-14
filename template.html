@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harbor &amp; Terminal-Bench: community health</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --neutral: #b4b3ab;
+  --hover: rgba(11, 11, 11, 0.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --neutral: #5f5e59;
+    --hover: rgba(255, 255, 255, 0.05);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+main { max-width: 1180px; margin: 0 auto; padding: 32px 24px 64px; }
+h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+h2 { font-size: 16px; font-weight: 600; margin: 48px 0 12px; }
+h3 { font-size: 14px; font-weight: 600; margin: 0; }
+p { margin: 0; }
+a { color: inherit; }
+.meta { color: var(--ink-2); max-width: 72ch; }
+.filters { display: flex; gap: 8px; align-items: center; margin: 20px 0 8px; }
+.filters span { color: var(--ink-2); margin-right: 4px; }
+.filters button {
+  font: inherit; color: var(--ink-2); background: transparent;
+  border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; cursor: pointer;
+}
+.filters button:hover { background: var(--hover); }
+.filters button[aria-pressed="true"] { color: var(--ink); border-color: var(--ink-2); font-weight: 600; }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 18px 20px 14px; margin-bottom: 16px;
+}
+.card .sub { color: var(--ink-2); margin: 2px 0 12px; max-width: 80ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; color: var(--ink-2); font-size: 12px; margin-bottom: 8px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.legend i.line { height: 2px; width: 14px; border-radius: 1px; vertical-align: 3px; }
+.panels { display: grid; gap: 20px; }
+.panel h4 { font-size: 12px; font-weight: 600; color: var(--ink-2); margin: 0 0 4px; }
+svg { display: block; overflow: visible; }
+svg text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+svg text.label { fill: var(--ink-2); font-size: 12px; font-variant-numeric: normal; }
+svg text.value { fill: var(--ink); font-size: 12px; font-weight: 600; }
+svg text.inside { font-size: 12px; font-weight: 600; }
+.hit { fill: transparent; cursor: default; }
+.hit:hover, .hit:focus { fill: var(--hover); outline: none; }
+details { margin-top: 10px; color: var(--ink-2); font-size: 12px; }
+summary { cursor: pointer; width: max-content; }
+table { border-collapse: collapse; font-size: 12px; margin-top: 8px; width: 100%; }
+th, td { text-align: right; padding: 4px 10px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--ink-2); font-weight: 600; }
+td { color: var(--ink); }
+table.summary { font-size: 13px; }
+table.summary td:first-child { color: var(--ink-2); }
+table.list th, table.list td { text-align: left; }
+table.list .num { text-align: right; }
+#tip {
+  position: fixed; pointer-events: none; z-index: 10; display: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12); min-width: 140px;
+}
+#tip .head { color: var(--ink-2); margin-bottom: 4px; }
+#tip .row { display: flex; align-items: center; gap: 8px; }
+#tip .row b { font-weight: 600; color: var(--ink); min-width: 3ch; }
+#tip .row span { color: var(--ink-2); }
+#tip .key { width: 12px; height: 2px; border-radius: 1px; flex: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Harbor &amp; Terminal-Bench community health</h1>
+  <p class="meta" id="meta"></p>
+  <div class="filters" role="group" aria-label="Time window">
+    <span>PRs opened in</span>
+    <button data-months="6">Last 6 months</button>
+    <button data-months="12">Last 12 months</button>
+    <button data-months="0">All time</button>
+  </div>
+  <div id="content"></div>
+</main>
+<div id="tip" role="tooltip"></div>
+
+<script>
+const DATA = /*DATA*/null;
+const DAY = 86400;
+const NOW = DATA.fetched;
+const REPOS = DATA.repos;
+const COMMUNITY = "Community";
+const MAINTAINERS = "Maintainers";
+
+// ---------- small helpers ----------
+
+const el = (tag, attrs = {}, ...children) => {
+  const svgTags = ["svg", "g", "rect", "path", "line", "text", "circle"];
+  const node = svgTags.includes(tag)
+    ? document.createElementNS("http://www.w3.org/2000/svg", tag)
+    : document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v === null || v === undefined) continue;
+    if (k === "text") node.textContent = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v);
+  }
+  for (const child of children.flat()) if (child) node.append(child);
+  return node;
+};
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const pct = (x, digits = 0) => (x === null || Number.isNaN(x) ? "–" : `${(100 * x).toFixed(digits)}%`);
+const fmtInt = n => n.toLocaleString("en-US");
+const compact = n => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}K` : `${Math.round(n)}`);
+const days = x => (x === null ? "–" : x < 1 ? `${(x * 24).toFixed(0)}h` : `${x.toFixed(x < 10 ? 1 : 0)}d`);
+const dayLabel = v => (v === 1 ? "1 day" : Number.isInteger(v) ? `${v} days` : `${v.toFixed(2).replace(/0+$/, "")} days`);
+const median = xs => quantile(xs, 0.5);
+function quantile(xs, q) {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b);
+  const i = (s.length - 1) * q;
+  const lo = Math.floor(i);
+  return s[lo] + (s[Math.ceil(i)] - s[lo]) * (i - lo);
+}
+const groupOf = pr => (pr.m ? MAINTAINERS : COMMUNITY);
+const monthKey = t => { const d = new Date(t * 1000); return d.getUTCFullYear() * 12 + d.getUTCMonth(); };
+const monthStart = k => Date.UTC(Math.floor(k / 12), k % 12, 1) / 1000;
+const monthLabel = k => new Date(monthStart(k) * 1000)
+  .toLocaleString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" }).replace(" ", " '");
+// Smallest axis max that is 3-5 gridlines of a 1/2/5 step.
+const niceStep = raw => { const p = 10 ** Math.floor(Math.log10(raw)); return [1, 2, 5, 10].map(m => m * p).find(m => m >= raw); };
+function niceMax(v) {
+  if (v <= 0) return 1;
+  return Math.min(...[3, 4, 5].map(t => niceStep(v / t) * t));
+}
+const tickCount = max => [4, 5, 3].find(t => niceStep(max / t) === max / t) ?? 4;
+
+// ---------- tooltip ----------
+
+const tip = document.getElementById("tip");
+function showTip(event, head, rows) {
+  tip.replaceChildren(el("div", { class: "head", text: head }),
+    ...rows.map(r => el("div", { class: "row" },
+      r.color ? el("i", { class: "key", style: `background:${r.color}` }) : null,
+      el("b", { text: r.value }), el("span", { text: r.label }))));
+  tip.style.display = "block";
+  const box = event.target.getBoundingClientRect?.() ?? { left: 0, top: 0 };
+  const x = event.clientX ?? box.left + box.width / 2;
+  const y = event.clientY ?? box.top;
+  const w = tip.offsetWidth;
+  tip.style.left = `${Math.min(x + 14, innerWidth - w - 8)}px`;
+  tip.style.top = `${y + 14}px`;
+}
+const hideTip = () => { tip.style.display = "none"; };
+const hover = (head, rows) => ({
+  onpointermove: e => showTip(e, head, rows), onpointerleave: hideTip,
+  onfocus: e => showTip(e, head, rows), onblur: hideTip, tabindex: 0,
+});
+
+// ---------- chart primitives ----------
+
+function legend(series, kind = "box") {
+  return el("div", { class: "legend" }, series.map(s =>
+    el("span", {}, el("i", { class: kind === "line" ? "line" : "", style: `background:${s.color}` }), s.label)));
+}
+
+function tableView(headers, rows) {
+  return el("details", {}, el("summary", { text: "Table" }),
+    el("table", {}, el("tr", {}, headers.map(h => el("th", { text: h }))),
+      rows.map(r => el("tr", {}, r.map(c => el("td", { text: c }))))));
+}
+
+// Rounded data-end, square at the baseline.
+function barPath(x, y, w, h, r = 4, horizontal = false) {
+  if (h <= 0 || w <= 0) return "";
+  if (horizontal) {
+    r = Math.min(r, w, h / 2);
+    return `M${x},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h - r}Q${x + w},${y + h} ${x + w - r},${y + h}H${x}Z`;
+  }
+  r = Math.min(r, h, w / 2);
+  return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+}
+
+function yAxis(g, scale, max, width, format, ticks = tickCount(max)) {
+  for (let i = 0; i <= ticks; i++) {
+    const v = (max * i) / ticks;
+    const y = scale(v);
+    g.append(el("line", { x1: 0, x2: width, y1: y, y2: y, stroke: i ? css("--grid") : css("--axis") }));
+    g.append(el("text", { x: -8, y: y + 4, "text-anchor": "end", text: format(v) }));
+  }
+}
+
+function monthTicks(g, months, xOf, y, width, label = monthLabel, all = false) {
+  const step = all ? 1 : Math.max(1, Math.ceil(months.length / Math.max(2, Math.floor(width / 64))));
+  months.forEach((m, i) => {
+    if (i % step === 0) g.append(el("text", { x: xOf(i), y: y + 16, "text-anchor": "middle", text: label(m) }));
+  });
+}
+
+/** Columns per category (months by default). series: [{label,color}], values[i][s]. stacked or grouped. */
+function columnChart({ width, height = 200, months, xLabel = monthLabel, allTicks = false, series, values, stacked = true, yMax, yFormat = compact, title }) {
+  const m = { top: 8, right: 8, bottom: 24, left: 36 };
+  const w = width - m.left - m.right, h = height - m.top - m.bottom;
+  const totals = values.map(v => (stacked ? v.reduce((a, b) => a + b, 0) : Math.max(...v)));
+  const max = yMax ?? niceMax(Math.max(1, ...totals));
+  const y = v => h - (v / max) * h;
+  const band = w / months.length;
+  const barW = Math.min(24, band * (stacked ? 0.7 : 0.8) / (stacked ? 1 : series.length));
+  const svg = el("svg", { width, height, role: "img", "aria-label": title });
+  const g = el("g", { transform: `translate(${m.left},${m.top})` });
+  svg.append(g);
+  yAxis(g, y, max, w, yFormat);
+  months.forEach((month, i) => {
+    const cx = band * i + band / 2;
+    let base = 0;
+    series.forEach((s, j) => {
+      const v = values[i][j];
+      if (!v) return;
+      if (stacked) {
+        const top = base + v;
+        const isTop = values[i].slice(j + 1).every(x => !x);
+        const y0 = y(base), y1 = y(top);
+        // 2px surface gap between stacked segments.
+        const gap = base > 0 ? 2 : 0;
+        const d = isTop ? barPath(cx - barW / 2, y1, barW, y0 - y1 - gap)
+          : `M${cx - barW / 2},${y1}h${barW}V${y0 - gap}h${-barW}Z`;
+        g.append(el("path", { d, fill: s.color }));
+        base = top;
+      } else {
+        const x = cx - (barW * series.length + 2 * (series.length - 1)) / 2 + j * (barW + 2);
+        g.append(el("path", { d: barPath(x, y(v), barW, h - y(v)), fill: s.color }));
+      }
+    });
+    const rows = series.map((s, j) => ({ color: s.color, value: yFormat(values[i][j]), label: s.label })).reverse();
+    g.append(el("rect", { class: "hit", x: band * i, y: 0, width: band, height: h, ...hover(xLabel(month), rows) }));
+  });
+  monthTicks(g, months, i => band * i + band / 2, h, w, xLabel, allTicks);
+  return svg;
+}
+
+/** Lines over a numeric or month x axis. series: [{label,color,values:[y|null]}]. */
+function lineChart({ width, height = 220, xs, xLabel, xTick, series, yMax = 1, yFormat = v => pct(v), endLabels = true, title }) {
+  const m = { top: 10, right: endLabels ? 110 : 12, bottom: 26, left: 40 };
+  const w = width - m.left - m.right, h = height - m.top - m.bottom;
+  const x = i => (xs.length === 1 ? w / 2 : (i / (xs.length - 1)) * w);
+  const y = v => h - (v / yMax) * h;
+  const svg = el("svg", { width, height, role: "img", "aria-label": title });
+  const g = el("g", { transform: `translate(${m.left},${m.top})` });
+  svg.append(g);
+  yAxis(g, y, yMax, w, yFormat);
+  const ticks = Math.max(2, Math.floor(w / 70));
+  const step = Math.ceil(xs.length / ticks);
+  xs.forEach((v, i) => {
+    if (xTick ? xTick(v) : i % step === 0 || i === xs.length - 1) {
+      g.append(el("text", { x: x(i), y: h + 16, "text-anchor": "middle", text: xLabel(v) }));
+    }
+  });
+  const ends = [];
+  for (const s of series) {
+    let d = "", pen = false;
+    s.values.forEach((v, i) => {
+      if (v === null) { pen = false; return; }
+      d += `${pen ? "L" : "M"}${x(i)},${y(v)}`;
+      pen = true;
+    });
+    g.append(el("path", { d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    s.values.forEach((v, i) => {
+      if (v !== null && (s.values[i - 1] ?? null) === null && (s.values[i + 1] ?? null) === null) {
+        g.append(el("circle", { cx: x(i), cy: y(v), r: 3, fill: s.color }));
+      }
+    });
+    const last = s.values.findLastIndex(v => v !== null);
+    if (last >= 0) {
+      g.append(el("circle", { cx: x(last), cy: y(s.values[last]), r: 4, fill: s.color, stroke: css("--surface"), "stroke-width": 2 }));
+      ends.push({ s, y: y(s.values[last]), v: s.values[last] });
+    }
+  }
+  if (endLabels) {
+    // Spread end labels only as far as needed to avoid overlap.
+    ends.sort((a, b) => a.y - b.y);
+    for (let i = 1; i < ends.length; i++) ends[i].y = Math.max(ends[i].y, ends[i - 1].y + 28);
+    for (const e of ends) {
+      g.append(el("text", { class: "value", x: w + 10, y: e.y + 4, text: yFormat(e.v) }));
+      g.append(el("text", { class: "label", x: w + 10, y: e.y + 18, text: e.s.label }));
+    }
+  }
+  const cross = el("line", { y1: 0, y2: h, stroke: css("--axis"), visibility: "hidden" });
+  g.append(cross);
+  const overlay = el("rect", { class: "hit", width: w, height: h, tabindex: 0 });
+  const at = event => {
+    const box = overlay.getBoundingClientRect();
+    const i = Math.max(0, Math.min(xs.length - 1, Math.round(((event.clientX - box.left) / box.width) * (xs.length - 1))));
+    cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.setAttribute("visibility", "visible");
+    showTip(event, xLabel(xs[i]), series.map(s => ({
+      color: s.color, value: s.values[i] === null ? "–" : yFormat(s.values[i]), label: s.label + (s.note ? s.note(i) : ""),
+    })));
+  };
+  overlay.addEventListener("pointermove", at);
+  overlay.addEventListener("pointerleave", () => { hideTip(); cross.setAttribute("visibility", "hidden"); });
+  g.append(overlay);
+  return svg;
+}
+
+/** Horizontal 100% stacked bars. rows: [{label, values:[n per series]}]. */
+function shareBars({ width, rows, series, title }) {
+  const m = { top: 4, right: 12, bottom: 4, left: 190 };
+  const rowH = 34, barH = 20;
+  const height = m.top + m.bottom + rows.length * rowH + (rows.some(r => r.gap) ? 12 : 0);
+  const w = width - m.left - m.right;
+  const svg = el("svg", { width, height, role: "img", "aria-label": title });
+  const g = el("g", { transform: `translate(${m.left},${m.top})` });
+  svg.append(g);
+  let yPos = 0;
+  rows.forEach(row => {
+    if (row.gap) yPos += 12;
+    const total = row.values.reduce((a, b) => a + b, 0);
+    const yy = yPos + (rowH - barH) / 2;
+    g.append(el("text", { class: "label", x: -12, y: yy + barH / 2 - 1, "text-anchor": "end", text: row.label }));
+    g.append(el("text", { x: -12, y: yy + barH / 2 + 12, "text-anchor": "end", text: `${fmtInt(total)} PRs` }));
+    let x0 = 0;
+    row.values.forEach((v, j) => {
+      if (!v) return;
+      const segW = (v / total) * w;
+      const isLast = row.values.slice(j + 1).every(z => !z);
+      const drawW = segW - (isLast ? 0 : 2);
+      const d = isLast ? barPath(x0, yy, drawW, barH, 4, true) : `M${x0},${yy}h${drawW}v${barH}h${-drawW}Z`;
+      g.append(el("path", { d, fill: series[j].color }));
+      const text = pct(v / total);
+      if (drawW > text.length * 7.5 + 12) {
+        g.append(el("text", { class: "inside", x: x0 + 8, y: yy + barH / 2 + 4, style: `fill:${series[j].ink ?? "#fff"}`, text }));
+      }
+      g.append(el("rect", {
+        class: "hit", x: x0, y: yy - 4, width: segW, height: barH + 8,
+        ...hover(row.label, [{ color: series[j].color, value: `${fmtInt(v)} (${text})`, label: series[j].label }]),
+      }));
+      x0 += segW;
+    });
+    yPos += rowH;
+  });
+  return svg;
+}
+
+function card(title, subtitle, ...body) {
+  return el("section", { class: "card" }, el("h3", { text: title }), subtitle ? el("p", { class: "sub", text: subtitle }) : null, ...body);
+}
+
+/** One panel per repo, sharing a scale chosen by the caller. */
+function panels(repoIdxs, make) {
+  const grid = el("div", { class: "panels", style: `grid-template-columns: repeat(${repoIdxs.length}, minmax(0, 1fr))` });
+  const content = document.getElementById("content");
+  const width = Math.max(260, (content.clientWidth - 42 - 20 * (repoIdxs.length - 1)) / repoIdxs.length);
+  for (const r of repoIdxs) grid.append(el("div", { class: "panel" }, el("h4", { text: REPOS[r].label }), make(r, width)));
+  return grid;
+}
+
+// ---------- metrics ----------
+
+let windowMonths = 12;
+const windowStart = () => (windowMonths ? NOW - windowMonths * 30.44 * DAY : Math.min(...DATA.pulls.map(p => p.c)));
+const inWindow = p => p.c >= windowStart();
+const repoIdx = REPOS.map((_, i) => i);
+const months = () => {
+  const out = [];
+  for (let k = monthKey(windowStart()); k <= monthKey(NOW); k++) out.push(k);
+  return out;
+};
+const start = p => p.rd ?? p.c;
+const replyDays = p => (p.fr === null ? null : Math.max(0, p.fr - start(p)) / DAY);
+const firstPr = new Map(); // repo:author -> created of their first PR
+for (const p of [...DATA.pulls].sort((a, b) => a.c - b.c)) {
+  const key = `${p.r}:${p.a}`;
+  if (!firstPr.has(key)) firstPr.set(key, p);
+}
+
+function colors() {
+  return {
+    community: css("--s1"), maintainers: css("--neutral"),
+    s1: css("--s1"), s2: css("--s2"), s3: css("--s3"), neutral: css("--neutral"),
+  };
+}
+
+// Share of PRs with a reply within each day count (PRs old enough to have had the full span).
+function replyCurve(prs, horizon, steps) {
+  const xs = Array.from({ length: steps + 1 }, (_, i) => (i * horizon) / steps);
+  const eligible = prs.filter(p => p.rd !== null && start(p) <= NOW - horizon * DAY);
+  const waits = eligible.map(replyDays);
+  return {
+    xs,
+    n: eligible.length,
+    never: eligible.length ? waits.filter(w => w === null).length / eligible.length : null,
+    values: xs.map(x => (eligible.length ? waits.filter(w => w !== null && w <= x).length / eligible.length : null)),
+  };
+}
+
+// ---------- sections ----------
+
+function render() {
+  const C = colors();
+  const content = document.getElementById("content");
+  content.replaceChildren();
+  const P = DATA.pulls.filter(inWindow);
+  const M = months();
+  const add = node => content.append(node);
+  const width = content.clientWidth - 42;
+
+  // 1. Outcomes
+  {
+    const series = [
+      { label: "Merged", color: C.s1 },
+      { label: "Closed without merging", color: C.s2 },
+      { label: "Still open", color: C.neutral, ink: css("--ink") },
+    ];
+    const rows = [];
+    const table = [];
+    repoIdx.forEach((r, i) => {
+      for (const grp of [COMMUNITY, MAINTAINERS]) {
+        const prs = P.filter(p => p.r === r && groupOf(p) === grp);
+        const values = [prs.filter(p => p.s === "merged").length, prs.filter(p => p.s === "closed").length, prs.filter(p => p.s === "open").length];
+        rows.push({ label: `${REPOS[r].label} · ${grp.toLowerCase()}`, values, gap: i > 0 && grp === COMMUNITY });
+        table.push([`${REPOS[r].label} · ${grp}`, ...values.map(fmtInt), fmtInt(prs.length)]);
+      }
+    });
+    add(card("What happens to a pull request",
+      "Current state of PRs opened in the window. Maintainers are people who have merged a PR in any of these repos, plus org members and collaborators.",
+      legend(series), shareBars({ width, rows, series, title: "PR outcomes by author group" }),
+      tableView(["", ...series.map(s => s.label), "Total"], table)));
+  }
+
+  // 2. Time to first human reply (community)
+  {
+    const horizon = 30;
+    const palette = [C.s1, C.s2, C.s3];
+    const curves = repoIdx.map(r => replyCurve(P.filter(p => p.r === r && !p.m), horizon, horizon * 4));
+    const series = curves.map((c, r) => ({ label: REPOS[r].label, color: palette[r], values: c.values, note: () => ` (n=${c.n})` }));
+    add(card("How long community PRs wait for a human",
+      `Share of community PRs that got a comment or review from a person other than the author, by days since the PR was ready for review. Bot comments and silent closes don't count. Only PRs at least ${horizon} days old.`,
+      legend(series, "line"),
+      lineChart({ width, height: 280, xs: curves[0].xs, xLabel: dayLabel, xTick: v => v % 5 === 0, series, title: "Community PR reply curve" }),
+      tableView(["Repo", "PRs", "Reply ≤1 day", "Reply ≤7 days", `Reply ≤${horizon} days`, "No human reply yet"],
+        curves.map((c, r) => [REPOS[r].label, fmtInt(c.n), pct(c.values[4]), pct(c.values[28]), pct(c.values.at(-1)), pct(c.never)]))));
+  }
+
+  // 3. Open PR backlog
+  {
+    const series = [{ label: MAINTAINERS, color: C.maintainers }, { label: COMMUNITY, color: C.community }];
+    const ends = M.map(k => Math.min(NOW, monthStart(k + 1)));
+    const data = repoIdx.map(r => ends.map(t => {
+      const open = DATA.pulls.filter(p => p.r === r && p.c <= t && (p.e === null || p.e > t));
+      return [open.filter(p => p.m).length, open.filter(p => !p.m).length];
+    }));
+    const yMax = niceMax(Math.max(...data.flat().map(([a, b]) => a + b)));
+    add(card("Open PR backlog",
+      "Open PRs at the end of each month (current month: today), including drafts.",
+      legend([...series].reverse()),
+      panels(repoIdx, (r, w) => columnChart({ width: w, months: M, series, values: data[r], yMax, title: `${REPOS[r].label} open PRs` })),
+      tableView(["Month", ...repoIdx.flatMap(r => [`${REPOS[r].label} maint.`, `${REPOS[r].label} comm.`])],
+        M.map((k, i) => [monthLabel(k), ...repoIdx.flatMap(r => data[r][i].map(fmtInt))]))));
+  }
+
+  add(el("h2", { text: "Summary" }));
+  add(summaryTable(P));
+
+  add(el("h2", { text: "Throughput and cycle time" }));
+  {
+    const series = [{ label: MAINTAINERS, color: C.maintainers }, { label: COMMUNITY, color: C.community }];
+    const data = repoIdx.map(r => M.map(k => {
+      const prs = DATA.pulls.filter(p => p.r === r && p.s === "merged" && monthKey(p.e) === k);
+      return [prs.filter(p => p.m).length, prs.filter(p => !p.m).length];
+    }));
+    const yMax = niceMax(Math.max(...data.flat().map(([a, b]) => a + b)));
+    add(card("Merged PRs per month", "By month merged.",
+      legend([...series].reverse()),
+      panels(repoIdx, (r, w) => columnChart({ width: w, months: M, series, values: data[r], yMax, title: `${REPOS[r].label} merged PRs` })),
+      tableView(["Month", ...repoIdx.flatMap(r => [`${REPOS[r].label} maint.`, `${REPOS[r].label} comm.`])],
+        M.map((k, i) => [monthLabel(k), ...repoIdx.flatMap(r => data[r][i].map(fmtInt))]))));
+  }
+  {
+    const groups = [{ label: COMMUNITY, color: C.community, m: false }, { label: MAINTAINERS, color: C.maintainers, m: true }];
+    const stats = repoIdx.map(r => groups.map(g => M.map(k => {
+      const d = DATA.pulls.filter(p => p.r === r && p.m === g.m && p.s === "merged" && monthKey(p.e) === k).map(p => (p.e - start(p)) / DAY);
+      return { med: d.length >= 3 ? median(d) : null, p90: d.length >= 3 ? quantile(d, 0.9) : null, n: d.length };
+    })));
+    const yMax = niceMax(Math.max(1, ...stats.flat(2).map(s => s.med ?? 0)));
+    add(card("Time to merge",
+      "Median days from ready-for-review to merge, by month merged. Months with fewer than 3 merges are left blank.",
+      legend(groups, "line"),
+      panels(repoIdx, (r, w) => lineChart({
+        width: w, height: 200, xs: M, xLabel: monthLabel, yMax, yFormat: days, endLabels: false,
+        series: groups.map((g, gi) => ({ ...g, values: stats[r][gi].map(s => s.med), note: i => ` · p90 ${days(stats[r][gi][i].p90)} · n=${stats[r][gi][i].n}` })),
+        title: `${REPOS[r].label} time to merge`,
+      })),
+      tableView(["Month", ...repoIdx.flatMap(r => groups.map(g => `${REPOS[r].label} ${g.label.toLowerCase()} median`))],
+        M.map((k, i) => [monthLabel(k), ...repoIdx.flatMap(r => groups.map((_, gi) => days(stats[r][gi][i].med)))]))));
+  }
+  {
+    const groups = [{ label: COMMUNITY, color: C.community, m: false }, { label: MAINTAINERS, color: C.maintainers, m: true }];
+    const horizon = 7;
+    const stats = repoIdx.map(r => groups.map(g => M.map(k => {
+      const prs = DATA.pulls.filter(p => p.r === r && p.m === g.m && p.rd !== null && monthKey(p.c) === k && start(p) <= NOW - horizon * DAY);
+      const within = prs.filter(p => p.rv !== null && p.rv - start(p) <= horizon * DAY).length;
+      const waits = prs.filter(p => p.rv !== null).map(p => Math.max(0, p.rv - start(p)) / DAY);
+      return { share: prs.length >= 3 ? within / prs.length : null, med: median(waits), n: prs.length };
+    })));
+    add(card("Review turnaround",
+      `Share of PRs that got a first human review (approve, request changes or review comment) within ${horizon} days of being ready, by month opened. Self-merged PRs with no review count as not reviewed.`,
+      legend(groups, "line"),
+      panels(repoIdx, (r, w) => lineChart({
+        width: w, height: 200, xs: M, xLabel: monthLabel, endLabels: false,
+        series: groups.map((g, gi) => ({ ...g, values: stats[r][gi].map(s => s.share), note: i => ` · median wait ${days(stats[r][gi][i].med)} · n=${stats[r][gi][i].n}` })),
+        title: `${REPOS[r].label} review turnaround`,
+      })),
+      tableView(["Month", ...repoIdx.flatMap(r => groups.map(g => `${REPOS[r].label} ${g.label.toLowerCase()}`))],
+        M.map((k, i) => [monthLabel(k), ...repoIdx.flatMap(r => groups.map((_, gi) => pct(stats[r][gi][i].share)))]))));
+  }
+
+  add(el("h2", { text: "Contributors" }));
+  {
+    const series = [
+      { label: MAINTAINERS, color: C.maintainers },
+      { label: "Returning community", color: C.s1 },
+      { label: "First-time community", color: C.s2 },
+    ];
+    const data = repoIdx.map(r => M.map(k => {
+      const authors = new Map();
+      for (const p of DATA.pulls) if (p.r === r && monthKey(p.c) === k) authors.set(p.a, p);
+      let counts = [0, 0, 0];
+      for (const [a, p] of authors) {
+        if (p.m) counts[0]++;
+        else if (monthKey(firstPr.get(`${r}:${a}`).c) === k) counts[2]++;
+        else counts[1]++;
+      }
+      return counts;
+    }));
+    const yMax = niceMax(Math.max(...data.flat().map(v => v[0] + v[1] + v[2])));
+    add(card("Who opens PRs",
+      "Distinct PR authors per month. First-time means the author's first PR in that repo was opened that month.",
+      legend([...series].reverse()),
+      panels(repoIdx, (r, w) => columnChart({ width: w, months: M, series, values: data[r], yMax, title: `${REPOS[r].label} PR authors` })),
+      tableView(["Month", ...repoIdx.flatMap(r => series.map(s => `${REPOS[r].label} ${s.label.toLowerCase()}`))],
+        M.map((k, i) => [monthLabel(k), ...repoIdx.flatMap(r => data[r][i].map(fmtInt))]))));
+  }
+
+  const taskRepos = repoIdx.filter(r => DATA.pulls.some(p => p.r === r && p.k !== "other"));
+  if (taskRepos.length) {
+    add(el("h2", { text: "Benchmark tasks" }));
+    {
+      const horizon = 30;
+      const palette = [C.s1, C.s2, C.s3];
+      const curves = taskRepos.map(r => replyCurve(P.filter(p => p.r === r && p.k === "new" && !p.m), horizon, horizon * 4));
+      const reviewCurves = taskRepos.map(r => {
+        const prs = P.filter(p => p.r === r && p.k === "new" && !p.m);
+        return replyCurve(prs.map(p => ({ ...p, fr: p.rv })), horizon, horizon * 4);
+      });
+      const series = taskRepos.map((r, i) => ({ label: REPOS[r].label, color: palette[i], values: reviewCurves[i].values, note: () => ` (n=${reviewCurves[i].n})` }));
+      add(card("New task PRs: time to first review",
+        `Share of community new-task PRs with a first human review, by days since ready for review. Only PRs at least ${horizon} days old.`,
+        legend(series, "line"),
+        lineChart({ width, height: 240, xs: reviewCurves[0].xs, xLabel: dayLabel, xTick: v => v % 5 === 0, series, title: "New task review curve" }),
+        tableView(["Repo", "PRs", "Reviewed ≤7 days", `Reviewed ≤${horizon} days`, "Never reviewed", "Any human reply ≤7 days", "Merged"],
+          taskRepos.map((r, i) => {
+            const prs = P.filter(p => p.r === r && p.k === "new" && !p.m);
+            return [REPOS[r].label, fmtInt(reviewCurves[i].n), pct(reviewCurves[i].values[28]), pct(reviewCurves[i].values.at(-1)),
+              pct(reviewCurves[i].never), pct(curves[i].values[28]), pct(prs.filter(p => p.s === "merged").length / prs.length)];
+          }))));
+    }
+    {
+      const buckets = [["<1 week", 0, 7], ["1–4 weeks", 7, 30], ["1–3 months", 30, 90], ["3+ months", 90, Infinity]];
+      const series = [{ label: "Has a human reply", color: C.s1 }, { label: "No human reply", color: C.s2 }];
+      const data = taskRepos.map(r => buckets.map(([, lo, hi]) => {
+        const prs = DATA.pulls.filter(p => p.r === r && p.k === "new" && p.s === "open" && (NOW - p.c) / DAY >= lo && (NOW - p.c) / DAY < hi);
+        return [prs.filter(p => p.fr !== null).length, prs.filter(p => p.fr === null).length];
+      }));
+      const yMax = niceMax(Math.max(...data.flat().map(([a, b]) => a + b)));
+      add(card("Open new-task PRs by age",
+        "All currently open new-task PRs regardless of window, by time since opened.",
+        legend(series),
+        panels(taskRepos, (r, w) => bucketChart({ width: w, buckets: buckets.map(b => b[0]), series, values: data[taskRepos.indexOf(r)], yMax, title: `${REPOS[r].label} open task PRs` })),
+        tableView(["Age", ...taskRepos.flatMap(r => series.map(s => `${REPOS[r].label} ${s.label.toLowerCase()}`))],
+          buckets.map((b, i) => [b[0], ...taskRepos.flatMap((r, ri) => data[ri][i].map(fmtInt))]))));
+    }
+    {
+      const buckets = [["<1 day", 0, 1], ["1–3 days", 1, 3], ["3–7 days", 3, 7], ["1–4 weeks", 7, 30], ["4+ weeks", 30, Infinity]];
+      const series = [{ label: COMMUNITY, color: C.community }, { label: MAINTAINERS, color: C.maintainers }];
+      const data = taskRepos.map(r => buckets.map(([, lo, hi]) => series.map(s => P.filter(p =>
+        p.r === r && p.k === "fix" && p.s === "merged" && groupOf(p) === s.label && (p.e - start(p)) / DAY >= lo && (p.e - start(p)) / DAY < hi).length)));
+      const yMax = niceMax(Math.max(1, ...data.flat(2)));
+      const meds = taskRepos.map(r => series.map(s => median(P.filter(p => p.r === r && p.k === "fix" && p.s === "merged" && groupOf(p) === s.label).map(p => (p.e - start(p)) / DAY))));
+      const open = taskRepos.map(r => series.map(s => P.filter(p => p.r === r && p.k === "fix" && p.s === "open" && groupOf(p) === s.label).length));
+      add(card("Task fix PRs: time to merge",
+        "Merged task-fix PRs opened in the window, by days from ready-for-review to merge.",
+        legend(series),
+        panels(taskRepos, (r, w) => bucketChart({ width: w, buckets: buckets.map(b => b[0]), series, values: data[taskRepos.indexOf(r)], yMax, stacked: false, title: `${REPOS[r].label} task fix merge time` })),
+        tableView(["Repo", "Community median", "Maintainers median", "Community still open", "Maintainers still open"],
+          taskRepos.map((r, i) => [REPOS[r].label, days(meds[i][0]), days(meds[i][1]), fmtInt(open[i][0]), fmtInt(open[i][1])]))));
+    }
+  }
+
+  const discRepos = repoIdx.filter(r => DATA.discussions.some(d => d.r === r));
+  if (discRepos.length) {
+    add(el("h2", { text: "Task proposals in GitHub Discussions" }));
+    const D = DATA.discussions.filter(d => d.c >= windowStart() && /task/i.test(d.cat));
+    const series = [
+      { label: "Reply within 7 days", color: C.s1 },
+      { label: "Reply after 7 days", color: C.s3 },
+      { label: "No human reply", color: C.s2 },
+    ];
+    const data = discRepos.map(r => M.map(k => {
+      const ds = D.filter(d => d.r === r && monthKey(d.c) === k);
+      const fast = ds.filter(d => d.fr !== null && d.fr - d.c <= 7 * DAY).length;
+      const replied = ds.filter(d => d.fr !== null).length;
+      return [fast, replied - fast, ds.length - replied];
+    }));
+    const yMax = niceMax(Math.max(...data.flat().map(v => v[0] + v[1] + v[2])));
+    add(card("Task proposals and replies",
+      "Discussions in the task proposal category, by month opened. A reply is a comment or threaded reply from a person other than the poster. TB-Science proposals are mirrored from Discord by a maintainer account, so there a reply means anyone other than that account.",
+      legend(series),
+      panels(discRepos, (r, w) => columnChart({ width: w, months: M, series, values: data[discRepos.indexOf(r)], yMax, title: `${REPOS[r].label} task proposals` })),
+      tableView(["Repo", "Proposals", "Reply ≤7 days", "No human reply", "Median wait for reply", "Approved", "Declined"],
+        discRepos.map(r => {
+          const ds = D.filter(d => d.r === r);
+          const waits = ds.filter(d => d.fr !== null).map(d => (d.fr - d.c) / DAY);
+          return [REPOS[r].label, fmtInt(ds.length), pct(ds.filter(d => d.fr !== null && d.fr - d.c <= 7 * DAY).length / ds.length),
+            pct(ds.filter(d => d.fr === null).length / ds.length), days(median(waits)),
+            fmtInt(ds.filter(d => d.dec === "approved").length), fmtInt(ds.filter(d => d.dec === "declined").length)];
+        }))));
+  }
+
+  add(el("h2", { text: "Waiting longest" }));
+  {
+    const waiting = DATA.pulls.filter(p => !p.m && p.s === "open" && p.rd !== null && p.fr === null).sort((a, b) => a.c - b.c);
+    const rows = waiting.slice(0, 25).map(p => el("tr", {},
+      el("td", { class: "num", text: `${Math.floor((NOW - p.c) / DAY)}d` }),
+      el("td", { text: REPOS[p.r].label }),
+      el("td", {}, el("a", { href: `https://github.com/${DATA.owner}/${REPOS[p.r].name}/pull/${p.n}`, text: `#${p.n}` })),
+      el("td", { text: p.t })));
+    add(card("Open community PRs with no human reply",
+      `${fmtInt(waiting.length)} open, non-draft community PRs have never had a human comment or review. Oldest first.`,
+      el("table", { class: "list" }, el("tr", {}, ["Age", "Repo", "PR", "Title"].map(h => el("th", { class: h === "Age" ? "num" : null, text: h }))), rows)));
+  }
+}
+
+function bucketChart({ buckets, ...rest }) {
+  return columnChart({ ...rest, months: buckets, xLabel: b => b, allTicks: true });
+}
+
+function summaryTable(P) {
+  const rows = [];
+  const add = (label, fn) => rows.push([label, ...repoIdx.map(fn)]);
+  const comm = r => P.filter(p => p.r === r && !p.m);
+  const maint = r => P.filter(p => p.r === r && p.m);
+  add("Open PRs today (community / maintainers)", r => {
+    const open = DATA.pulls.filter(p => p.r === r && p.s === "open");
+    return `${fmtInt(open.filter(p => !p.m).length)} / ${fmtInt(open.filter(p => p.m).length)}`;
+  });
+  add("PRs opened (community / maintainers)", r => `${fmtInt(comm(r).length)} / ${fmtInt(maint(r).length)}`);
+  add("Merged, community", r => pct(comm(r).filter(p => p.s === "merged").length / comm(r).length));
+  add("Merged, maintainers", r => pct(maint(r).filter(p => p.s === "merged").length / maint(r).length));
+  add("Median wait for first human reply, community (PRs that got one)", r => days(median(comm(r).map(replyDays).filter(x => x !== null))));
+  add("Community PRs with no human reply", r => {
+    const prs = comm(r).filter(p => p.rd !== null);
+    return pct(prs.filter(p => p.fr === null).length / prs.length);
+  });
+  add("Community PRs closed with no human comment", r => {
+    const prs = comm(r);
+    return pct(prs.filter(p => p.s === "closed" && p.fr === null).length / prs.length);
+  });
+  add("Median days to merge (community / maintainers)", r => {
+    const m = prs => median(prs.filter(p => p.s === "merged").map(p => (p.e - start(p)) / DAY));
+    return `${days(m(comm(r)))} / ${days(m(maint(r)))}`;
+  });
+  add("Merged PRs by top author / top 5", r => {
+    const counts = {};
+    for (const p of P) if (p.r === r && p.s === "merged") counts[p.a] = (counts[p.a] ?? 0) + 1;
+    const sorted = Object.values(counts).sort((a, b) => b - a);
+    const total = sorted.reduce((a, b) => a + b, 0);
+    return `${pct(sorted[0] / total)} / ${pct(sorted.slice(0, 5).reduce((a, b) => a + b, 0) / total)}`;
+  });
+  add("First-time community authors", r => fmtInt(new Set(comm(r).filter(p => firstPr.get(`${r}:${p.a}`) === p).map(p => p.a)).size));
+  add("…who opened another PR within 90 days", r => {
+    const firsts = comm(r).filter(p => firstPr.get(`${r}:${p.a}`) === p && p.c <= NOW - 90 * DAY);
+    const back = firsts.filter(f => DATA.pulls.some(p => p.r === r && p.a === f.a && p.c > f.c && p.c <= f.c + 90 * DAY));
+    return firsts.length ? `${pct(back.length / firsts.length)} of ${fmtInt(firsts.length)}` : "–";
+  });
+  return el("section", { class: "card" },
+    el("table", { class: "summary" },
+      el("tr", {}, el("th", { text: "PRs opened in the window" }), repoIdx.map(r => el("th", { text: REPOS[r].label }))),
+      rows.map(r => el("tr", {}, r.map(c => el("td", { text: c }))))));
+}
+
+// ---------- wiring ----------
+
+const buttons = [...document.querySelectorAll(".filters button")];
+function setWindow(m) {
+  windowMonths = m;
+  buttons.forEach(b => b.setAttribute("aria-pressed", String(Number(b.dataset.months) === m)));
+  render();
+}
+buttons.forEach(b => b.addEventListener("click", () => setWindow(Number(b.dataset.months))));
+const asOf = new Date(NOW * 1000).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+document.getElementById("meta").textContent =
+  `GitHub data for ${REPOS.map(r => `${DATA.owner}/${r.name}`).join(", ")} as of ${asOf}. ` +
+  `${DATA.maintainers.length} maintainers, ${fmtInt(DATA.pulls.length)} PRs. Bot-authored PRs are excluded.`;
+let resizeTimer;
+addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 150); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+setWindow(12);
+</script>
+</body>
+</html>
